@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-dotenv
+gitpython
+tree-sitter
+tree-sitter-python
+tree-sitter-javascript
+sentence-transformers
+chromadb
+langchain
+langchain-groq
+langchain-community
+groq
+requests
