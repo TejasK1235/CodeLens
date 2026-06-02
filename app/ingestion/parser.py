@@ -314,7 +314,8 @@ def extract_imports(source_bytes: bytes, ext: str) -> list[str]:
     language = LANGUAGE_MAP.get(ext)
     if not language:
         return []
-    parser = Parser(language)
+    parser = Parser()
+    parser.set_language(language)  
     tree = parser.parse(source_bytes)
     imports = []
 
@@ -382,7 +383,8 @@ def parse_file(file_path: str, repo_root: str) -> list[dict]:
         return []
 
     chunk_types = CHUNK_TYPES_MAP.get(ext, set())
-    parser = Parser(language)
+    parser = Parser()
+    parser.set_language(language)
 
     try:
         tree = parser.parse(source_bytes)
