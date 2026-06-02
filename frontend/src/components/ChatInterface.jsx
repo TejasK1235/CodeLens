@@ -7,9 +7,23 @@ import {
 } from '../supabase'
 import './ChatInterface.css'
 
+// ── Easter egg ────────────────────────────────────────────────────────────────
+const GRIEVOUS_TRIGGER = "Hello there!"
+const GRIEVOUS_OPENING = `*mechanical breathing intensifies*
+
+**General Kenobi...** You ARE a bold one.
+
+I have been expecting you. My droids have already indexed this entire codebase — every function, every class, every dependency. Your Republic cannot hide its architecture from me.
+
+Ask your questions, Jedi. I shall answer them with the precision of my four lightsabers. But know this — I have the high ground in matters of code intelligence.
+
+*cough cough*
+
+What do you wish to know about this repository?`
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function MessageBubble({ message, onViewSources, isActive }) {
+function MessageBubble({ message, onViewSources, isActive, grievousMode }) {
   const [hovered, setHovered] = useState(false)
 
   if (message.role === 'user') {
@@ -22,13 +36,15 @@ function MessageBubble({ message, onViewSources, isActive }) {
 
   return (
     <div
-      className="msg-row msg-assistant fade-in"
+      className={`msg-row msg-assistant fade-in ${grievousMode ? 'grievous-msg' : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="msg-meta">
-        <span className="msg-label">CodeLens</span>
-        {message.stats && (
+        <span className="msg-label">
+          {grievousMode ? '⚔️ General Grievous' : 'CodeLens'}
+        </span>
+        {message.stats && !grievousMode && (
           <span className="msg-stats">
             {message.stats.retrieved_count} retrieved · {message.stats.expanded_count} expanded
           </span>
@@ -42,7 +58,7 @@ function MessageBubble({ message, onViewSources, isActive }) {
           </button>
         )}
       </div>
-      <div className="msg-bubble assistant-bubble">
+      <div className={`msg-bubble assistant-bubble ${grievousMode ? 'grievous-bubble' : ''}`}>
         <AnswerText text={message.content} />
       </div>
     </div>
@@ -69,9 +85,11 @@ function AnswerText({ text }) {
           <span key={i} className="answer-prose">
             {part.split('\n').map((line, j) => (
               <span key={j}>
-                {line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((seg, k) => {
+                {line.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).map((seg, k) => {
                   if (seg.startsWith('**') && seg.endsWith('**'))
                     return <strong key={k}>{seg.slice(2, -2)}</strong>
+                  if (seg.startsWith('*') && seg.endsWith('*') && seg.length > 2)
+                    return <em key={k}>{seg.slice(1, -1)}</em>
                   if (seg.startsWith('`') && seg.endsWith('`'))
                     return <code key={k} className="inline-code">{seg.slice(1, -1)}</code>
                   return seg
@@ -86,11 +104,15 @@ function AnswerText({ text }) {
   )
 }
 
-function ThinkingBubble() {
+function ThinkingBubble({ grievousMode }) {
   return (
     <div className="msg-row msg-assistant fade-in">
-      <div className="msg-meta"><span className="msg-label">CodeLens</span></div>
-      <div className="msg-bubble assistant-bubble thinking-bubble">
+      <div className="msg-meta">
+        <span className="msg-label">
+          {grievousMode ? '⚔️ General Grievous' : 'CodeLens'}
+        </span>
+      </div>
+      <div className={`msg-bubble assistant-bubble thinking-bubble ${grievousMode ? 'grievous-bubble' : ''}`}>
         <span className="thinking-dot" style={{ animationDelay: '0s' }} />
         <span className="thinking-dot" style={{ animationDelay: '0.2s' }} />
         <span className="thinking-dot" style={{ animationDelay: '0.4s' }} />
@@ -98,8 +120,6 @@ function ThinkingBubble() {
     </div>
   )
 }
-
-// ── Guest banner ──────────────────────────────────────────────────────────────
 
 function GuestBanner({ queriesUsed, queryLimit, onSignup }) {
   const remaining = queryLimit - queriesUsed
@@ -138,6 +158,7 @@ export default function ChatInterface({
   const [conversationId, setConversationId] = useState(existingConversation?.id || null)
   const [loadingHistory, setLoadingHistory] = useState(!!existingConversation)
   const [guestQueriesUsed, setGuestQueriesUsed] = useState(initialGuestQueriesUsed)
+  const [grievousMode, setGrievousMode] = useState(false)
 
   const isDragging = useRef(false)
   const dragStartX = useRef(0)
@@ -145,7 +166,6 @@ export default function ChatInterface({
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Load history when resuming a conversation
   useEffect(() => {
     if (!existingConversation) { setLoadingHistory(false); return }
     getConversationMessages(existingConversation.id).then(msgs => {
@@ -179,7 +199,6 @@ export default function ChatInterface({
     }
   }, [query])
 
-  // Drag-to-resize sources panel
   const onDragStart = useCallback((e) => {
     isDragging.current = true
     dragStartX.current = e.clientX
@@ -221,18 +240,44 @@ export default function ChatInterface({
     const q = query.trim()
     if (!q || loading) return
 
-    // Guest limit check
     if (isGuest && guestQueriesUsed >= guestQueryLimit) {
       onGuestLimitReached?.()
       return
     }
 
     setQuery('')
+
+    // ── Easter egg detection ─────────────────────────────────────────────────
+    // Only triggers on the very first message in a fresh conversation
+    if (q === GRIEVOUS_TRIGGER && messages.length === 0) {
+      setGrievousMode(true)
+      setMessages([
+        { role: 'user', content: q },
+        { role: 'assistant', content: GRIEVOUS_OPENING, sources: [], stats: null },
+      ])
+      // Save to Supabase if authenticated
+      if (user && !isGuest) {
+        const convo = await createConversation(
+          user.id, repoData.repo_id, repoData.full_name, q
+        )
+        if (convo) {
+          setConversationId(convo.id)
+          await saveMessage(convo.id, user.id, 'user', q)
+          await saveMessage(convo.id, user.id, 'assistant', GRIEVOUS_OPENING, [], null)
+        }
+      }
+      if (isGuest) {
+        const newCount = onIncrementGuestQuery?.() ?? guestQueriesUsed + 1
+        setGuestQueriesUsed(newCount)
+      }
+      return
+    }
+    // ── End easter egg ───────────────────────────────────────────────────────
+
     setMessages(prev => [...prev, { role: 'user', content: q }])
     setLoading(true)
 
     try {
-      // Create conversation on first message (authenticated users only)
       let convId = conversationId
       if (!convId && user && !isGuest) {
         const convo = await createConversation(user.id, repoData.repo_id, repoData.full_name, q)
@@ -242,13 +287,10 @@ export default function ChatInterface({
         await saveMessage(convId, user.id, 'user', q)
       }
 
-      const data = await queryRepo(repoData.repo_id, q, buildHistory())
+      const data = await queryRepo(
+        repoData.repo_id, q, buildHistory(), grievousMode
+      )
 
-      // ── Bug fix: filter file_summary chunks from sources ──────────────────
-      // File summary chunks are synthetic LLM-generated descriptions, not real
-      // source code locations. They are valuable context for the LLM answer but
-      // should not appear as clickable citations in the UI because they do not
-      // correspond to a meaningful GitHub line range.
       const visibleSources = (data.sources || []).filter(
         s => !s.name?.startsWith('__file__')
       )
@@ -272,11 +314,9 @@ export default function ChatInterface({
         await updateRepoLastQueried(user.id, repoData.repo_id)
       }
 
-      // Increment guest query counter
       if (isGuest) {
         const newCount = onIncrementGuestQuery?.() ?? guestQueriesUsed + 1
         setGuestQueriesUsed(newCount)
-        // If that was the last free query, prompt signup after showing the answer
         if (newCount >= guestQueryLimit) {
           setTimeout(() => onGuestLimitReached?.(), 3500)
         }
@@ -310,6 +350,7 @@ export default function ChatInterface({
 
   const isEmpty = messages.length === 0
   const guestLimitReached = isGuest && guestQueriesUsed >= guestQueryLimit
+  const isMobile = window.innerWidth <= 768
 
   if (loadingHistory) {
     return (
@@ -322,8 +363,8 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="chat-layout" style={{ flexDirection: 'column' }}>
-      {/* Guest banner */}
+    <div className={`chat-layout ${grievousMode ? 'grievous-theme' : ''}`}
+         style={{ flexDirection: 'column' }}>
       {isGuest && (
         <GuestBanner
           queriesUsed={guestQueriesUsed}
@@ -333,7 +374,6 @@ export default function ChatInterface({
       )}
 
       <div className="chat-layout-inner">
-        {/* Chat panel */}
         <div className="chat-panel">
           {isEmpty ? (
             <div className="chat-empty">
@@ -374,21 +414,24 @@ export default function ChatInterface({
                   message={msg}
                   onViewSources={sources => handleViewSources(sources, i)}
                   isActive={activeSourcesMsgIndex === i}
+                  grievousMode={grievousMode}
                 />
               ))}
-              {loading && <ThinkingBubble />}
+              {loading && <ThinkingBubble grievousMode={grievousMode} />}
               <div ref={bottomRef} />
             </div>
           )}
 
           <div className="chat-input-bar">
-            <div className={`chat-input-wrap ${guestLimitReached ? 'disabled' : ''}`}>
+            <div className={`chat-input-wrap ${guestLimitReached ? 'disabled' : ''} ${grievousMode ? 'grievous-input' : ''}`}>
               <textarea
                 ref={inputRef}
                 className="chat-input"
                 placeholder={
                   guestLimitReached
                     ? 'Sign up for unlimited queries →'
+                    : grievousMode
+                    ? 'Your query, Jedi...'
                     : `Ask about ${repoData.full_name}...`
                 }
                 value={query}
@@ -403,7 +446,7 @@ export default function ChatInterface({
                 disabled={loading || (!guestLimitReached && !query.trim())}
                 aria-label={guestLimitReached ? 'Sign up' : 'Send'}
               >
-                {guestLimitReached ? '→' : '↑'}
+                {guestLimitReached ? '→' : grievousMode ? '⚔️' : '↑'}
               </button>
             </div>
             {!guestLimitReached && (
@@ -412,18 +455,17 @@ export default function ChatInterface({
           </div>
         </div>
 
-        {/* Resize handle */}
-        {window.innerWidth > 768 && (
+        {!isMobile && (
           <div
             className="panel-resize-handle"
             onMouseDown={onDragStart}
             title="Drag to resize"
           />
         )}
-        {/* Sources panel */}
+
         <div
           className="sources-panel-wrapper"
-          style={{ width: window.innerWidth <= 768 ? '100%' : `${sourcesPanelWidth}px` }}
+          style={{ width: isMobile ? '100%' : `${sourcesPanelWidth}px` }}
         >
           <SourcesPanel sources={activeSources} repoData={repoData} />
         </div>

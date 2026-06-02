@@ -268,3 +268,58 @@
   text-align: center;
   margin-top: 8px;
 }
+
+
+/* Add to bottom of ChatInterface.css */
+
+/* ── Grievous easter egg theme ── */
+.grievous-theme .messages-list {
+  background: linear-gradient(180deg, var(--bg-surface) 0%, rgba(180,0,0,0.04) 100%);
+}
+.grievous-bubble {
+  border-color: rgba(180, 0, 0, 0.3) !important;
+  background: rgba(40, 0, 0, 0.3) !important;
+}
+.grievous-msg .msg-label {
+  color: #cc3333 !important;
+}
+.grievous-input {
+  border-color: rgba(180, 0, 0, 0.4) !important;
+}
+.grievous-input:focus-within {
+  border-color: #cc3333 !important;
+  box-shadow: 0 0 0 3px rgba(180, 0, 0, 0.15) !important;
+}
+
+/* ── Dashboard delete repo button ── */
+.btn-delete-repo {
+  font-size: 14px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+.btn-delete-repo:hover:not(:disabled) {
+  color: var(--error);
+  border-color: var(--error);
+  background: var(--error-dim);
+}
+.btn-delete-repo.confirm {
+  color: var(--warn, #e07b39);
+  border-color: var(--warn, #e07b39);
+  font-size: 11px;
+}
+.btn-delete-repo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.repo-card-deleting {
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}

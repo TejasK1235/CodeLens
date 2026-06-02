@@ -124,3 +124,33 @@ export async function getConversationMessages(conversationId) {
   if (error) console.error('getConversationMessages error:', error)
   return data || []
 }
+
+// Add these to the bottom of frontend/src/supabase.js
+
+export async function deleteIndexedRepo(userId, repoId) {
+  // Deleting the repo row also deletes all conversations for that repo
+  // because conversations reference repo_id. Messages cascade from conversations.
+  // We delete conversations explicitly first to be safe.
+  const { data: convos } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('repo_id', repoId)
+
+  if (convos?.length) {
+    await supabase
+      .from('conversations')
+      .delete()
+      .eq('user_id', userId)
+      .eq('repo_id', repoId)
+  }
+
+  const { error } = await supabase
+    .from('indexed_repos')
+    .delete()
+    .eq('user_id', userId)
+    .eq('repo_id', repoId)
+
+  if (error) console.error('deleteIndexedRepo error:', error)
+  return !error
+}

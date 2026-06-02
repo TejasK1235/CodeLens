@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { supabase, getUserRepos, getUserConversations, deleteConversation } from '../supabase'
+import { supabase, getUserRepos, getUserConversations, deleteConversation, deleteIndexedRepo } from '../supabase'
+import { deleteRepoFromBackend } from '../api'
 import './Dashboard.css'
 
-function RepoCard({ repo, conversations, onOpenRepo, onResumeConversation }) {
+function RepoCard({ repo, conversations, onOpenRepo, onResumeConversation, onDeleteRepo }) {
   const [expanded, setExpanded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const repoConvos = conversations.filter(c => c.repo_id === repo.repo_id)
 
   function formatDate(iso) {
@@ -17,8 +20,19 @@ function RepoCard({ repo, conversations, onOpenRepo, onResumeConversation }) {
     return d.toLocaleDateString()
   }
 
+  async function handleDeleteRepo(e) {
+    e.stopPropagation()
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      setTimeout(() => setConfirmDelete(false), 3000)
+      return
+    }
+    setDeleting(true)
+    await onDeleteRepo(repo.repo_id)
+  }
+
   return (
-    <div className="repo-card">
+    <div className={`repo-card ${deleting ? 'repo-card-deleting' : ''}`}>
       <div className="repo-card-header">
         <div className="repo-card-info">
           <div className="repo-card-name-row">
@@ -34,10 +48,7 @@ function RepoCard({ repo, conversations, onOpenRepo, onResumeConversation }) {
           </div>
         </div>
         <div className="repo-card-actions">
-          <button
-            className="btn-new-chat"
-            onClick={() => onOpenRepo(repo)}
-          >
+          <button className="btn-new-chat" onClick={() => onOpenRepo(repo)}>
             New chat →
           </button>
           {repoConvos.length > 0 && (
@@ -48,6 +59,14 @@ function RepoCard({ repo, conversations, onOpenRepo, onResumeConversation }) {
               {expanded ? '▲ hide' : `▼ ${repoConvos.length} chats`}
             </button>
           )}
+          <button
+            className={`btn-delete-repo ${confirmDelete ? 'confirm' : ''}`}
+            onClick={handleDeleteRepo}
+            disabled={deleting}
+            title={confirmDelete ? 'Click again to confirm' : 'Delete repo'}
+          >
+            {deleting ? '…' : confirmDelete ? 'Sure?' : '×'}
+          </button>
         </div>
       </div>
 
@@ -78,7 +97,7 @@ function ConversationRow({ convo, onResume, formatDate, onDelete }) {
       return
     }
     await deleteConversation(convo.id)
-    onDelete && onDelete(convo.id)
+    onDelete?.(convo.id)
   }
 
   return (
@@ -120,6 +139,12 @@ export default function Dashboard({ user, onOpenRepo, onResumeConversation, onNe
     load()
   }, [user.id])
 
+  async function handleDeleteRepo(repoId) {
+    await deleteIndexedRepo(user.id, repoId)
+    setRepos(prev => prev.filter(r => r.repo_id !== repoId))
+    setConversations(prev => prev.filter(c => c.repo_id !== repoId))
+  }
+
   function handleDeleteConversation(deletedId) {
     setConversations(prev => prev.filter(c => c.id !== deletedId))
   }
@@ -127,9 +152,6 @@ export default function Dashboard({ user, onOpenRepo, onResumeConversation, onNe
   async function handleSignOut() {
     await supabase.auth.signOut()
   }
-
-  const totalConversations = conversations.length
-  const recentRepos = repos.slice(0, 3)
 
   return (
     <div className="dashboard">
@@ -145,7 +167,7 @@ export default function Dashboard({ user, onOpenRepo, onResumeConversation, onNe
             </span>
             <span className="stat-sep">·</span>
             <span className="stat-item">
-              <span className="stat-num">{totalConversations}</span> conversations
+              <span className="stat-num">{conversations.length}</span> conversations
             </span>
           </div>
         </div>
@@ -188,8 +210,8 @@ export default function Dashboard({ user, onOpenRepo, onResumeConversation, onNe
                 repo={repo}
                 conversations={conversations}
                 onOpenRepo={onOpenRepo}
-                onResumeConversation={(repo, convo) => onResumeConversation(repo, convo)}
-                onDeleteConversation={handleDeleteConversation}
+                onResumeConversation={onResumeConversation}
+                onDeleteRepo={handleDeleteRepo}
               />
             ))}
           </div>

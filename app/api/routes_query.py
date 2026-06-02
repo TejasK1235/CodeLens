@@ -5,38 +5,33 @@ from app.generation.chain import run_query
 
 router = APIRouter()
 
-
 class ConversationTurn(BaseModel):
     query: str
     answer: str
-
 
 class QueryRequest(BaseModel):
     repo_id: str
     query: str
     conversation_history: list[ConversationTurn] = []
-
+    grievous_mode: bool = False  # Easter egg flag
 
 @router.post("/query")
 async def query_repo(request: QueryRequest):
     if not is_indexed(request.repo_id):
         raise HTTPException(
             status_code=404,
-            detail=f"No indexed repository found for repo_id: {request.repo_id}. Run /index first."
+            detail=f"Repository {request.repo_id} is not indexed. Please index it first."
         )
 
     cache = get_cache_status(request.repo_id)
-    if cache["status"] != "ready":
-        raise HTTPException(
-            status_code=400,
-            detail="Repository is not ready. Indexing may still be in progress."
-        )
+    if not cache:
+        raise HTTPException(status_code=404, detail="Repository metadata not found.")
 
     clone_result = {
-        "owner": cache["owner"],
-        "repo": cache["repo"],
-        "full_name": cache["full_name"],
-        "commit_hash": cache["commit_hash"],
+        "owner": cache.get("owner", ""),
+        "repo":  cache.get("repo", ""),
+        "commit_hash": cache.get("commit_hash", ""),
+        "full_name": cache.get("full_name", ""),
     }
 
     history = [
@@ -44,15 +39,13 @@ async def query_repo(request: QueryRequest):
         for turn in request.conversation_history
     ]
 
-    try:
-        result = run_query(
-            repo_id=request.repo_id,
-            query=request.query,
-            clone_result=clone_result,
-            conversation_history=history,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+    result = run_query(
+        repo_id=request.repo_id,
+        query=request.query,
+        clone_result=clone_result,
+        conversation_history=history,
+        grievous_mode=request.grievous_mode,
+    )
 
     return {
         "repo_id": request.repo_id,

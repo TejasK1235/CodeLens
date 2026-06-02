@@ -228,3 +228,4 @@ notebooks/
 CodeLens.zip
 package-lock.json
 temp.py
+app/api/routes_delete.py

@@ -39,17 +39,24 @@ def generate_hypothetical_answer(query: str) -> str:
     print(f"[HyDE] Hypothetical answer generated ({len(hypothetical)} chars)")
     return hypothetical
 
-def build_chain():
+
+def build_chain(grievous_mode: bool = False):
+    from langchain_groq import ChatGroq
+    from langchain_core.output_parsers import StrOutputParser
+    from app.generation.prompts import SYSTEM_PROMPT, GRIEVOUS_SYSTEM_PROMPT, build_qa_prompt
+ 
+    system = GRIEVOUS_SYSTEM_PROMPT if grievous_mode else SYSTEM_PROMPT
+    prompt = build_qa_prompt(system_prompt=system)
+ 
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
         model=GROQ_MODEL_QUERY,
-        temperature=0.1,
+        temperature=grievous_mode and 0.7 or 0.1,  # more creative in Grievous mode
         max_tokens=1024,
         stop_sequences=["Note that"],
     )
-    prompt = build_qa_prompt()
-    parser = StrOutputParser()
-    return prompt | llm | parser
+ 
+    return prompt | llm | StrOutputParser()
 
 
 def build_github_url(clone_result: dict, file_path: str, start_line: int) -> str:
@@ -122,55 +129,46 @@ def run_query(
     repo_id: str,
     query: str,
     clone_result: dict,
-    conversation_history: list[dict] = None,
+    conversation_history: list = None,
+    grievous_mode: bool = False,
 ) -> dict:
-    if conversation_history is None:
-        conversation_history = []
-
-    print(f"[Chain] Running retrieval with expansion...")
-    # retrieval_result = retrieve_with_expansion(repo_id, query)
-    print(f"[Chain] Generating hypothetical answer for retrieval (HyDE)...")
+    conversation_history = conversation_history or []
+ 
+    # HyDE — generate hypothetical answer to enrich retrieval
     hypothetical = generate_hypothetical_answer(query)
-    retrieval_query = f"{query}\n\n{hypothetical}"
-    retrieval_result = retrieve_with_expansion(repo_id, retrieval_query)
+    enriched_query = f"{query}\n\n{hypothetical}" if hypothetical else query
+ 
+    # Retrieve with expansion
+    retrieval_result = retrieve_with_expansion(repo_id, enriched_query)
     chunks = retrieval_result["chunks"]
-
+ 
     if not chunks:
         return {
-            "answer": "I could not find relevant code in this repository to answer your question. Try rephrasing or asking about a specific function or file.",
+            "answer": "I could not find relevant code chunks for your query. "
+                      "The repository may not be fully indexed yet.",
             "sources": [],
             "retrieved_count": 0,
             "expanded_count": 0,
         }
-
-    chunks_for_llm = chunks
-
-    for chunk in chunks_for_llm:
-        chunk["document"] = truncate_chunk_text(chunk["document"], MAX_CHUNK_CHARS)
-
-    print(f"[Chain] Sending {len(chunks_for_llm)} chunks to LLM (4 retrieved + up to 2 expanded)")
-
-    context = format_context(chunks_for_llm)
-    history_text = format_conversation_history(conversation_history[-2:])
-
-    print(f"[Chain] Calling LLM...")
-    chain = build_chain()
-    answer = chain.invoke({
-        "context": context,
-        "question": query,
-        "conversation_history": history_text,
-    })
-
+ 
+    context = format_context(chunks)
+    history_text = format_conversation_history(conversation_history)
+ 
+    # Build chain — use Grievous system prompt if in easter egg mode
+    chain = build_chain(grievous_mode=grievous_mode)
+ 
+    try:
+        answer = chain.invoke({
+            "context": context,
+            "conversation_history": history_text,
+            "question": query,
+        })
+    except Exception as e:
+        print(f"[Chain] LLM error: {e}")
+        answer = f"LLM error: {str(e)}"
+ 
     sources = format_sources(chunks, clone_result)
-
-    # grounded = is_answer_grounded(answer, chunks_for_llm)
-    # if not grounded:
-    #     answer = (
-    #         "Low confidence: The retrieved code chunks may not fully support this answer. "
-    #         "Try rephrasing with more specific function or file names.\n\n" + answer
-    #     )
-
-    print(f"[Chain] Done. Answer length: {len(answer)} chars")
+ 
     return {
         "answer": answer,
         "sources": sources,

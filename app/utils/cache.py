@@ -76,3 +76,21 @@ def get_cache_status(repo_id: str) -> dict:
         "owner": info["owner"],
         "repo": info["repo"],
     }
+
+
+# def get_registry() -> dict:
+#     """Load the full registry dict."""
+#     if not os.path.exists(REGISTRY_PATH):
+#         return {}
+#     try:
+#         with open(REGISTRY_PATH, "r") as f:
+#             return json.load(f)
+#     except Exception:
+#         return {}
+
+
+# def save_registry(registry: dict) -> None:
+#     """Save the full registry dict."""
+#     os.makedirs(os.path.dirname(REGISTRY_PATH), exist_ok=True)
+#     with open(REGISTRY_PATH, "w") as f:
+#         json.dump(registry, f, indent=2)

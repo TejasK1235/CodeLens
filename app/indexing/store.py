@@ -28,14 +28,14 @@ def create_collection(repo_id: str):
     )
 
 
-def delete_collection(repo_id: str) -> bool:
-    client = get_client()
-    existing = [c.name for c in client.list_collections()]
-    if repo_id in existing:
-        client.delete_collection(name=repo_id)
-        print(f"[Store] Deleted collection: {repo_id}")
-        return True
-    return False
+# def delete_collection(repo_id: str) -> bool:
+#     client = get_client()
+#     existing = [c.name for c in client.list_collections()]
+#     if repo_id in existing:
+#         client.delete_collection(name=repo_id)
+#         print(f"[Store] Deleted collection: {repo_id}")
+#         return True
+#     return False
 
 
 def save_chunks(repo_id: str, chunks: list[dict], documents: list[str], embeddings: list[list[float]]) -> int:
@@ -108,3 +108,15 @@ def get_collection_stats(repo_id: str) -> dict:
         "repo_id": repo_id,
         "chunk_count": count,
     }
+
+
+def delete_collection(repo_id: str) -> bool:
+    """Delete a ChromaDB collection entirely."""
+    try:
+        client = get_client()
+        client.delete_collection(name=repo_id)
+        print(f"[Store] Deleted collection: {repo_id}")
+        return True
+    except Exception as e:
+        print(f"[Store] Failed to delete collection {repo_id}: {e}")
+        return False
