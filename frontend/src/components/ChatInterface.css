@@ -324,15 +324,89 @@
   transition: opacity 0.3s ease;
 }
 
+/* ── Grievous easter egg theme ── */
+/* Add these to the bottom of your existing ChatInterface.css */
+
+.grievous-theme .chat-layout-inner {
+  position: relative;
+}
+
 .grievous-theme .chat-layout-inner::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image: url('../assets/gg_dancing.gif');
-  background-size: 80%;
+  background-size: 55%;
   background-position: center center;
   background-repeat: no-repeat;
   opacity: 1;
   pointer-events: none;
   z-index: 0;
+}
+
+/* Keep all panel content above the gif */
+.grievous-theme .chat-panel,
+.grievous-theme .panel-resize-handle,
+.grievous-theme .sources-panel-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Input bar must be above gif — explicit z-index and opaque background */
+.grievous-theme .chat-input-bar {
+  position: relative;
+  z-index: 10;
+  background: var(--bg-surface);
+}
+
+/* Message bubbles get slight red tint */
+.grievous-bubble {
+  border-color: rgba(180, 0, 0, 0.35) !important;
+  background: rgba(30, 0, 0, 0.85) !important;
+}
+
+.grievous-msg .msg-label {
+  color: #cc3333 !important;
+}
+
+/* Input border goes red in grievous mode */
+.grievous-input {
+  border-color: rgba(180, 0, 0, 0.5) !important;
+}
+.grievous-input:focus-within {
+  border-color: #cc3333 !important;
+  box-shadow: 0 0 0 3px rgba(180, 0, 0, 0.15) !important;
+}
+
+/* ── Dashboard delete repo button ── */
+.btn-delete-repo {
+  font-size: 14px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+.btn-delete-repo:hover:not(:disabled) {
+  color: var(--error);
+  border-color: var(--error);
+  background: var(--error-dim);
+}
+.btn-delete-repo.confirm {
+  color: #e07b39;
+  border-color: #e07b39;
+  font-size: 11px;
+}
+.btn-delete-repo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.repo-card-deleting {
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }

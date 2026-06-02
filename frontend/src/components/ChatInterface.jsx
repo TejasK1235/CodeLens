@@ -5,11 +5,12 @@ import {
   saveMessage, createConversation, getConversationMessages,
   updateConversationTimestamp, updateRepoLastQueried,
 } from '../supabase'
+import grievousAudio from '../assets/lol.mp3'
 import './ChatInterface.css'
 
 // ── Easter egg ────────────────────────────────────────────────────────────────
 const GRIEVOUS_TRIGGER = "Hello there!"
-const GRIEVOUS_OPENING = `General Kenobi! You are a bold one!`
+const GRIEVOUS_OPENING = `General Kenobi! You are a bold one.`
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -155,6 +156,17 @@ export default function ChatInterface({
   const dragStartWidth = useRef(0)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const audioRef = useRef(null)
+
+  // Stop audio when component unmounts (user navigates away)
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!existingConversation) { setLoadingHistory(false); return }
@@ -238,14 +250,18 @@ export default function ChatInterface({
     setQuery('')
 
     // ── Easter egg detection ─────────────────────────────────────────────────
-    // Only triggers on the very first message in a fresh conversation
     if (q === GRIEVOUS_TRIGGER && !grievousMode) {
       setGrievousMode(true)
-      setMessages([
+      // Start audio — .catch() silences browser autoplay policy errors
+      if (audioRef.current) {
+        audioRef.current.volume = 0.5
+        audioRef.current.play().catch(() => {})
+      }
+      setMessages(prev => [
+        ...prev,
         { role: 'user', content: q },
         { role: 'assistant', content: GRIEVOUS_OPENING, sources: [], stats: null },
       ])
-      // Save to Supabase if authenticated
       if (user && !isGuest) {
         const convo = await createConversation(
           user.id, repoData.repo_id, repoData.full_name, q
@@ -353,8 +369,13 @@ export default function ChatInterface({
   }
 
   return (
-    <div className={`chat-layout ${grievousMode ? 'grievous-theme' : ''}`}
-         style={{ flexDirection: 'column' }}>
+    <div
+      className={`chat-layout ${grievousMode ? 'grievous-theme' : ''}`}
+      style={{ flexDirection: 'column' }}
+    >
+      {/* Hidden audio element — plays only in grievous mode */}
+      <audio ref={audioRef} src={grievousAudio} loop preload="auto" />
+
       {isGuest && (
         <GuestBanner
           queriesUsed={guestQueriesUsed}
