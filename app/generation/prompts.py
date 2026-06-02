@@ -31,12 +31,19 @@ QUESTION:
 Answer based on the code chunks above:"""
 
 
-def build_qa_prompt() -> ChatPromptTemplate:
+# def build_qa_prompt() -> ChatPromptTemplate:
+#     return ChatPromptTemplate.from_messages([
+#         ("system", SYSTEM_PROMPT),
+#         ("human", HUMAN_PROMPT),
+#     ])
+
+def build_qa_prompt(system_prompt=None):
+    if system_prompt is None:
+        system_prompt = SYSTEM_PROMPT
     return ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("human", HUMAN_PROMPT),
     ])
-
 
 def format_context(chunks: list[dict]) -> str:
     sections = []

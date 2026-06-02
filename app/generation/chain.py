@@ -5,6 +5,8 @@ from app.generation.prompts import (
     build_qa_prompt,
     format_context,
     format_conversation_history,
+    SYSTEM_PROMPT,
+    GRIEVOUS_SYSTEM_PROMPT,
 )
 from app.retrieval.expander import retrieve_with_expansion
 
@@ -43,15 +45,14 @@ def generate_hypothetical_answer(query: str) -> str:
 def build_chain(grievous_mode: bool = False):
     from langchain_groq import ChatGroq
     from langchain_core.output_parsers import StrOutputParser
-    from app.generation.prompts import SYSTEM_PROMPT, GRIEVOUS_SYSTEM_PROMPT, build_qa_prompt
- 
+     
     system = GRIEVOUS_SYSTEM_PROMPT if grievous_mode else SYSTEM_PROMPT
     prompt = build_qa_prompt(system_prompt=system)
  
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
         model=GROQ_MODEL_QUERY,
-        temperature=grievous_mode and 0.7 or 0.1,  # more creative in Grievous mode
+        temperature=0.7 if grievous_mode else 0.1,  # more creative in Grievous mode
         max_tokens=1024,
         stop_sequences=["Note that"],
     )
