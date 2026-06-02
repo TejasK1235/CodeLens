@@ -306,7 +306,3 @@ codelens/
 - **Java/C++/C# chunking**: 40-line fixed blocks, not AST-based
 
 ---
-
-## License
-
-MIT
