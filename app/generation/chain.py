@@ -39,16 +39,6 @@ def generate_hypothetical_answer(query: str) -> str:
     print(f"[HyDE] Hypothetical answer generated ({len(hypothetical)} chars)")
     return hypothetical
 
-# def build_chain():
-#     llm = ChatGroq(
-#         api_key=GROQ_API_KEY,
-#         model=GROQ_MODEL_QUERY,
-#         temperature=0.1,
-#     )
-#     prompt = build_qa_prompt()
-#     parser = StrOutputParser()
-#     return prompt | llm | parser
-
 def build_chain():
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
@@ -77,6 +67,8 @@ def format_sources(chunks: list[dict], clone_result: dict) -> list[dict]:
     sources = []
     seen = set()
     for chunk in chunks:
+        if chunk.get("type") == "file_summary":
+            continue
         key = chunk["chunk_id"]
         if key in seen:
             continue
@@ -150,12 +142,6 @@ def run_query(
             "retrieved_count": 0,
             "expanded_count": 0,
         }
-
-    # retrieved = [c for c in chunks if not c.get("is_expanded")]
-    # expanded = [c for c in chunks if c.get("is_expanded")]
-    # retrieved = retrieved[:4]
-    # expanded = expanded[:2]
-    # chunks_for_llm = retrieved + expanded
 
     chunks_for_llm = chunks
 
