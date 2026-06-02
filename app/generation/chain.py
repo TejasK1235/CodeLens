@@ -45,7 +45,7 @@ def build_chain():
         model=GROQ_MODEL_QUERY,
         temperature=0.1,
         max_tokens=1024,
-        stop_sequences=["Note that", "However, the emphasis flag is not"],
+        stop_sequences=["Note that"],
     )
     prompt = build_qa_prompt()
     parser = StrOutputParser()
@@ -166,7 +166,7 @@ def run_query(
     # grounded = is_answer_grounded(answer, chunks_for_llm)
     # if not grounded:
     #     answer = (
-    #         "⚠ Low confidence: The retrieved code chunks may not fully support this answer. "
+    #         "Low confidence: The retrieved code chunks may not fully support this answer. "
     #         "Try rephrasing with more specific function or file names.\n\n" + answer
     #     )
 
