@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE = 'http://localhost:8000'
+const BASE = import.meta.env.VITE_API_URL
 
 export async function indexRepo(githubUrl) {
   const res = await axios.post(`${BASE}/index`, { github_url: githubUrl })
