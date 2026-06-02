@@ -6,13 +6,13 @@ import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
 from app.config import SUPPORTED_EXTENSIONS
 
-PY_LANGUAGE = Language(tspython.language())
-JS_LANGUAGE = Language(tsjavascript.language())
+PY_LANGUAGE = Language(tspython.language(), "python")
+JS_LANGUAGE = Language(tsjavascript.language(), "javascript")
 
 TS_LANGUAGE = None
 try:
     import tree_sitter_typescript as tsts
-    TS_LANGUAGE = Language(tsts.language_typescript())
+    TS_LANGUAGE = Language(tsts.language_typescript(), "typescript")
 except Exception:
     pass
 
