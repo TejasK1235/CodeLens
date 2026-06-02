@@ -6,13 +6,13 @@ import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
 from app.config import SUPPORTED_EXTENSIONS
 
-PY_LANGUAGE = Language(tspython.language(), "python")
-JS_LANGUAGE = Language(tsjavascript.language(), "javascript")
+PY_LANGUAGE = Language(tspython.language())
+JS_LANGUAGE = Language(tsjavascript.language())
 
 TS_LANGUAGE = None
 try:
     import tree_sitter_typescript as tsts
-    TS_LANGUAGE = Language(tsts.language_typescript(), "typescript")
+    TS_LANGUAGE = Language(tsts.language_typescript())
 except Exception:
     pass
 
@@ -314,8 +314,7 @@ def extract_imports(source_bytes: bytes, ext: str) -> list[str]:
     language = LANGUAGE_MAP.get(ext)
     if not language:
         return []
-    parser = Parser()
-    parser.set_language(language)  
+    parser = Parser(language) 
     tree = parser.parse(source_bytes)
     imports = []
 
@@ -383,8 +382,7 @@ def parse_file(file_path: str, repo_root: str) -> list[dict]:
         return []
 
     chunk_types = CHUNK_TYPES_MAP.get(ext, set())
-    parser = Parser()
-    parser.set_language(language)
+    parser = Parser(language)
 
     try:
         tree = parser.parse(source_bytes)
