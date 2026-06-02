@@ -324,25 +324,15 @@
   transition: opacity 0.3s ease;
 }
 
-/* Grievous GIF background — only in grievous mode */
-.grievous-theme .chat-layout-inner {
-  position: relative;
-}
 .grievous-theme .chat-layout-inner::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image: url('../assets/gg_dancing.gif');
-  background-size: 400px auto;
-  background-position: bottom right;
+  background-size: 80%;
+  background-position: center center;
   background-repeat: no-repeat;
-  opacity: 0.18;
+  opacity: 1;
   pointer-events: none;
   z-index: 0;
-}
-.grievous-theme .chat-panel,
-.grievous-theme .panel-resize-handle,
-.grievous-theme .sources-panel-wrapper {
-  position: relative;
-  z-index: 1;
 }
