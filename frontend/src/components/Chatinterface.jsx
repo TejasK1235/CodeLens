@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { queryRepo } from '../api'
 import SourcesPanel from './SourcesPanel'
+import {
+  saveMessage,
+  createConversation,
+  getConversationMessages,
+  updateConversationTimestamp,
+  updateRepoLastQueried,
+} from '../supabase'
 import './ChatInterface.css'
 
 function MessageBubble({ message, onViewSources, isActive }) {
@@ -33,7 +40,6 @@ function MessageBubble({ message, onViewSources, isActive }) {
           <button
             className={`view-sources-btn ${isActive ? 'active' : ''}`}
             onClick={() => onViewSources(message.sources)}
-            title="View sources for this response"
           >
             {isActive ? '● sources' : '○ view sources'}
           </button>
@@ -67,12 +73,10 @@ function AnswerText({ text }) {
             {part.split('\n').map((line, j) => (
               <span key={j}>
                 {line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((seg, k) => {
-                  if (seg.startsWith('**') && seg.endsWith('**')) {
+                  if (seg.startsWith('**') && seg.endsWith('**'))
                     return <strong key={k}>{seg.slice(2, -2)}</strong>
-                  }
-                  if (seg.startsWith('`') && seg.endsWith('`')) {
+                  if (seg.startsWith('`') && seg.endsWith('`'))
                     return <code key={k} className="inline-code">{seg.slice(1, -1)}</code>
-                  }
                   return seg
                 })}
                 {j < part.split('\n').length - 1 && <br />}
@@ -88,9 +92,7 @@ function AnswerText({ text }) {
 function ThinkingBubble() {
   return (
     <div className="msg-row msg-assistant fade-in">
-      <div className="msg-meta">
-        <span className="msg-label">CodeLens</span>
-      </div>
+      <div className="msg-meta"><span className="msg-label">CodeLens</span></div>
       <div className="msg-bubble assistant-bubble thinking-bubble">
         <span className="thinking-dot" style={{ animationDelay: '0s' }} />
         <span className="thinking-dot" style={{ animationDelay: '0.2s' }} />
@@ -100,13 +102,15 @@ function ThinkingBubble() {
   )
 }
 
-export default function ChatInterface({ repoData }) {
+export default function ChatInterface({ repoData, user, existingConversation = null }) {
   const [messages, setMessages] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeSources, setActiveSources] = useState([])
   const [activeSourcesMsgIndex, setActiveSourcesMsgIndex] = useState(null)
   const [sourcesPanelWidth, setSourcesPanelWidth] = useState(340)
+  const [conversationId, setConversationId] = useState(existingConversation?.id || null)
+  const [loadingHistory, setLoadingHistory] = useState(!!existingConversation)
 
   const isDragging = useRef(false)
   const dragStartX = useRef(0)
@@ -114,20 +118,44 @@ export default function ChatInterface({ repoData }) {
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Load existing conversation messages if resuming
+  useEffect(() => {
+    if (!existingConversation) {
+      setLoadingHistory(false)
+      return
+    }
+    async function loadHistory() {
+      const msgs = await getConversationMessages(existingConversation.id)
+      const formatted = msgs.map(m => ({
+        role: m.role,
+        content: m.content,
+        sources: m.sources || [],
+        stats: m.stats || null,
+      }))
+      setMessages(formatted)
+      // Set sources to last assistant message's sources
+      const lastAssistant = [...formatted].reverse().find(m => m.role === 'assistant')
+      if (lastAssistant?.sources?.length) {
+        setActiveSources(lastAssistant.sources)
+        setActiveSourcesMsgIndex(formatted.lastIndexOf(lastAssistant))
+      }
+      setLoadingHistory(false)
+    }
+    loadHistory()
+  }, [existingConversation?.id])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    if (!loadingHistory) inputRef.current?.focus()
+  }, [loadingHistory])
 
-  // Auto-grow textarea
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
-      const scrollH = inputRef.current.scrollHeight
-      inputRef.current.style.height = `${Math.min(scrollH, 160)}px`
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`
     }
   }, [query])
 
@@ -143,8 +171,7 @@ export default function ChatInterface({ repoData }) {
     function onMouseMove(e) {
       if (!isDragging.current) return
       const delta = dragStartX.current - e.clientX
-      const newWidth = Math.min(Math.max(dragStartWidth.current + delta, 220), 560)
-      setSourcesPanelWidth(newWidth)
+      setSourcesPanelWidth(Math.min(Math.max(dragStartWidth.current + delta, 220), 560))
     }
     function onMouseUp() {
       if (!isDragging.current) return
@@ -163,11 +190,9 @@ export default function ChatInterface({ repoData }) {
   function buildHistory() {
     const turns = []
     for (let i = 0; i < messages.length - 1; i += 2) {
-      const userMsg = messages[i]
-      const assistantMsg = messages[i + 1]
-      if (userMsg && assistantMsg) {
-        turns.push({ query: userMsg.content, answer: assistantMsg.content })
-      }
+      const u = messages[i]
+      const a = messages[i + 1]
+      if (u && a) turns.push({ query: u.content, answer: a.content })
     }
     return turns.slice(-2)
   }
@@ -175,21 +200,51 @@ export default function ChatInterface({ repoData }) {
   async function handleSend() {
     const q = query.trim()
     if (!q || loading) return
+
     setQuery('')
-    setMessages(prev => [...prev, { role: 'user', content: q }])
+    const userMsg = { role: 'user', content: q }
+    setMessages(prev => [...prev, userMsg])
     setLoading(true)
+
     try {
+      // Create conversation on first message
+      let convId = conversationId
+      if (!convId && user) {
+        const convo = await createConversation(user.id, repoData.repo_id, repoData.full_name, q)
+        if (convo) {
+          convId = convo.id
+          setConversationId(convId)
+        }
+      }
+
+      // Save user message
+      if (convId && user) {
+        await saveMessage(convId, user.id, 'user', q)
+      }
+
       const history = buildHistory()
       const data = await queryRepo(repoData.repo_id, q, history)
+
       const assistantMsg = {
         role: 'assistant',
         content: data.answer,
-        sources: data.sources,
+        sources: data.sources || [],
         stats: {
           retrieved_count: data.retrieved_count,
           expanded_count: data.expanded_count,
         },
       }
+
+      // Save assistant message
+      if (convId && user) {
+        await saveMessage(convId, user.id, 'assistant', data.answer, data.sources || [], {
+          retrieved_count: data.retrieved_count,
+          expanded_count: data.expanded_count,
+        })
+        await updateConversationTimestamp(convId)
+        await updateRepoLastQueried(user.id, repoData.repo_id)
+      }
+
       setMessages(prev => {
         const next = [...prev, assistantMsg]
         setActiveSourcesMsgIndex(next.length - 1)
@@ -223,9 +278,18 @@ export default function ChatInterface({ repoData }) {
 
   const isEmpty = messages.length === 0
 
+  if (loadingHistory) {
+    return (
+      <div className="chat-layout">
+        <div className="chat-panel" style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <span className="loading-spinner" style={{ width: 20, height: 20 }} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="chat-layout">
-      {/* LEFT: chat panel */}
       <div className="chat-panel">
         {isEmpty ? (
           <div className="chat-empty">
@@ -279,27 +343,20 @@ export default function ChatInterface({ repoData }) {
               onClick={handleSend}
               disabled={loading || !query.trim()}
               aria-label="Send"
-            >
-              ↑
-            </button>
+            >↑</button>
           </div>
           <p className="input-hint">Enter to send · Shift+Enter for newline</p>
         </div>
       </div>
 
-      {/* RESIZE HANDLE — sits between chat and sources as a flex child */}
       <div
         className="panel-resize-handle"
         onMouseDown={onDragStart}
         title="Drag to resize"
       />
 
-      {/* RIGHT: sources panel — width controlled by state */}
       <div className="sources-panel-wrapper" style={{ width: `${sourcesPanelWidth}px` }}>
-        <SourcesPanel
-          sources={activeSources}
-          repoData={repoData}
-        />
+        <SourcesPanel sources={activeSources} repoData={repoData} />
       </div>
     </div>
   )
