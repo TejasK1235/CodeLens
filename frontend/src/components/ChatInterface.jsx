@@ -9,17 +9,7 @@ import './ChatInterface.css'
 
 // ── Easter egg ────────────────────────────────────────────────────────────────
 const GRIEVOUS_TRIGGER = "Hello there!"
-const GRIEVOUS_OPENING = `*mechanical breathing intensifies*
-
-**General Kenobi...** You ARE a bold one.
-
-I have been expecting you. My droids have already indexed this entire codebase — every function, every class, every dependency. Your Republic cannot hide its architecture from me.
-
-Ask your questions, Jedi. I shall answer them with the precision of my four lightsabers. But know this — I have the high ground in matters of code intelligence.
-
-*cough cough*
-
-What do you wish to know about this repository?`
+const GRIEVOUS_OPENING = `General Kenobi! You are a bold one!`
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -249,7 +239,7 @@ export default function ChatInterface({
 
     // ── Easter egg detection ─────────────────────────────────────────────────
     // Only triggers on the very first message in a fresh conversation
-    if (q === GRIEVOUS_TRIGGER && messages.length === 0) {
+    if (q === GRIEVOUS_TRIGGER && !grievousMode) {
       setGrievousMode(true)
       setMessages([
         { role: 'user', content: q },
