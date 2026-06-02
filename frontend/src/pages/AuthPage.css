@@ -192,3 +192,115 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* Add these to the bottom of AuthPage.css */
+
+.auth-guest-section {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.auth-guest-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.auth-guest-divider::before,
+.auth-guest-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.auth-guest-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+.auth-guest-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.auth-guest-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Guest banner in ChatInterface */
+.chat-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+.chat-layout-inner {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+}
+.guest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: var(--accent-dim);
+  border-bottom: 1px solid var(--accent);
+  flex-shrink: 0;
+  gap: 12px;
+}
+.guest-banner-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.guest-banner-cta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #000;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+  font-family: var(--font-sans);
+}
+.guest-banner-cta:hover { background: var(--accent-hover); }
+
+.empty-guest-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: -4px;
+}
+.guest-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 8px;
+}
+.chat-input-wrap.disabled {
+  opacity: 0.6;
+  border-color: var(--border-subtle);
+}

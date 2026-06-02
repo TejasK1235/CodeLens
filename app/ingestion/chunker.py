@@ -3,6 +3,7 @@ import hashlib
 import time
 from app.config import MAX_CHUNK_TOKENS, MIN_CHUNK_WORDS
 
+
 def generate_file_description(file_path: str, function_names: list[str]) -> str:
     from langchain_groq import ChatGroq
     from langchain_core.prompts import ChatPromptTemplate
@@ -39,6 +40,7 @@ def generate_file_description(file_path: str, function_names: list[str]) -> str:
     except Exception as e:
         print(f"[Chunker] LLM description failed for {file_path}: {e}")
         return f"Module containing: {', '.join(function_names[:5])}"
+
 
 def estimate_tokens(text: str) -> int:
     return int(len(text.split()) * 1.3)
@@ -101,25 +103,20 @@ def process_chunks(raw_chunks: list[dict], repo_id: str) -> list[dict]:
             for sc in sub_chunks:
                 if len(sc["text"].split()) >= MIN_CHUNK_WORDS:
                     sc["chunk_id"] = make_chunk_id(
-                        repo_id,
-                        sc["file_path"],
-                        sc["name"],
-                        sc["start_line"],
+                        repo_id, sc["file_path"], sc["name"], sc["start_line"]
                     )
                     sc["repo_id"] = repo_id
+                    sc.setdefault("context_prefix", "")
                     final_chunks.append(sc)
         else:
             chunk["chunk_id"] = make_chunk_id(
-                repo_id,
-                chunk["file_path"],
-                chunk["name"],
-                chunk["start_line"],
+                repo_id, chunk["file_path"], chunk["name"], chunk["start_line"]
             )
             chunk["repo_id"] = repo_id
+            chunk.setdefault("context_prefix", "")
             final_chunks.append(chunk)
 
     from collections import defaultdict
-
     file_groups = defaultdict(list)
     for chunk in final_chunks:
         file_groups[chunk["file_path"]].append(chunk)
@@ -130,7 +127,6 @@ def process_chunks(raw_chunks: list[dict], repo_id: str) -> list[dict]:
             final_chunks.append(summary)
 
     print(f"[Chunker] Added {len(file_groups)} file summary chunks")
-
     print(f"[Chunker] Input: {len(raw_chunks)} raw chunks")
     print(f"[Chunker] Dropped {undersized} undersized chunks")
     print(f"[Chunker] Split {oversized} oversized chunks")
@@ -138,10 +134,15 @@ def process_chunks(raw_chunks: list[dict], repo_id: str) -> list[dict]:
     return final_chunks
 
 
-def build_file_summary_chunk(file_path: str, chunks: list[dict], repo_id: str) -> dict | None:
+def build_file_summary_chunk(
+    file_path: str, chunks: list[dict], repo_id: str
+) -> dict | None:
     if not chunks:
         return None
-    function_names = [c["name"] for c in chunks if c["type"] not in ("module", "file_summary", "markdown_section")]
+    function_names = [
+        c["name"] for c in chunks
+        if c["type"] not in ("module", "file_summary", "markdown_section")
+    ]
     if len(function_names) < 2:
         return None
 
@@ -168,11 +169,34 @@ def build_file_summary_chunk(file_path: str, chunks: list[dict], repo_id: str) -
         "language": chunks[0].get("language", "unknown"),
         "imports": [],
         "calls": function_names,
+        "context_prefix": "",
         "chunk_id": make_chunk_id(repo_id, file_path, "__file_summary__", 0),
         "repo_id": repo_id,
     }
 
 
 def build_chunk_document(chunk: dict) -> str:
-    header = f"# {chunk['name']} ({chunk['type']}) in {chunk['file_path']}"
-    return f"{header}\n\n{chunk['text']}"
+    """
+    Build the string that gets embedded and sent to the LLM.
+
+    For method/function chunks that have a context_prefix, the document is:
+
+        [Class: AuthManager | File: auth/manager.py]
+        [Instance attributes: jwt_client, secret, clock]
+        [Method: validate_token]
+
+        def validate_token(self, token):
+            ...
+
+    For everything else it is the original header + code format.
+    The context prefix is stored separately on the chunk so the raw code
+    text is never modified — only the embedding document changes.
+    """
+    prefix = chunk.get("context_prefix", "").strip()
+
+    if prefix:
+        return f"{prefix}\n\n{chunk['text']}"
+    else:
+        # Fallback to original format for chunks without contextual info
+        header = f"# {chunk['name']} ({chunk['type']}) in {chunk['file_path']}"
+        return f"{header}\n\n{chunk['text']}"

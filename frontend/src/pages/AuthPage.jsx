@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import './AuthPage.css'
 
-export default function AuthPage({ onAuth }) {
-  const [mode, setMode] = useState('login') // 'login' | 'signup'
+export default function AuthPage({ onAuth, onGuestMode }) {
+  const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -13,16 +13,10 @@ export default function AuthPage({ onAuth }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!email.trim() || !password.trim()) return
-    setError('')
-    setMessage('')
-    setLoading(true)
-
+    setError(''); setMessage(''); setLoading(true)
     try {
       if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        })
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
         if (error) throw error
         if (data.user && !data.session) {
           setMessage('Check your email to confirm your account, then log in.')
@@ -32,8 +26,7 @@ export default function AuthPage({ onAuth }) {
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
+          email: email.trim(), password,
         })
         if (error) throw error
         onAuth(data.user)
@@ -46,16 +39,12 @@ export default function AuthPage({ onAuth }) {
   }
 
   async function handleForgotPassword() {
-    if (!email.trim()) {
-      setError('Enter your email first.')
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (!email.trim()) { setError('Enter your email first.'); return }
+    setLoading(true); setError('')
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
       if (error) throw error
-      setMessage('Password reset email sent. Check your inbox.')
+      setMessage('Password reset email sent.')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -65,12 +54,6 @@ export default function AuthPage({ onAuth }) {
 
   return (
     <div className="auth-screen">
-      <div className="auth-bg" aria-hidden="true">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="auth-bg-line" style={{ animationDelay: `${i * 0.4}s` }} />
-        ))}
-      </div>
-
       <div className="auth-card fade-in">
         <div className="auth-logo">
           <span className="auth-logo-icon">⬡</span>
@@ -90,45 +73,27 @@ export default function AuthPage({ onAuth }) {
           <div className="auth-field">
             <label className="auth-label">Email</label>
             <input
-              type="email"
-              className="auth-input"
+              type="email" className="auth-input"
               placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              disabled={loading}
-              autoFocus
-              required
+              value={email} onChange={e => setEmail(e.target.value)}
+              disabled={loading} autoFocus required
             />
           </div>
-
           <div className="auth-field">
             <label className="auth-label">Password</label>
             <input
-              type="password"
-              className="auth-input"
+              type="password" className="auth-input"
               placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              disabled={loading}
-              required
+              value={password} onChange={e => setPassword(e.target.value)}
+              disabled={loading} required
             />
           </div>
 
-          {error && (
-            <div className="auth-error fade-in">
-              <span>⚠</span> {error}
-            </div>
-          )}
-
-          {message && (
-            <div className="auth-message fade-in">
-              <span>✓</span> {message}
-            </div>
-          )}
+          {error   && <div className="auth-error fade-in"><span>⚠</span> {error}</div>}
+          {message && <div className="auth-message fade-in"><span>✓</span> {message}</div>}
 
           <button
-            type="submit"
-            className="auth-submit"
+            type="submit" className="auth-submit"
             disabled={loading || !email.trim() || !password.trim()}
           >
             {loading ? (
@@ -141,6 +106,21 @@ export default function AuthPage({ onAuth }) {
             )}
           </button>
         </form>
+
+        {/* Guest mode — only rendered when a pre-indexed repo is configured */}
+        {onGuestMode && (
+          <div className="auth-guest-section">
+            <div className="auth-guest-divider">
+              <span>or</span>
+            </div>
+            <button className="auth-guest-btn" onClick={onGuestMode} disabled={loading}>
+              Try without an account →
+              <span className="auth-guest-note">
+                Explore a pre-indexed repo · {3} free queries
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="auth-footer">
           {mode === 'login' ? (

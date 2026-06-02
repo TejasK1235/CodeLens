@@ -2,13 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { queryRepo } from '../api'
 import SourcesPanel from './SourcesPanel'
 import {
-  saveMessage,
-  createConversation,
-  getConversationMessages,
-  updateConversationTimestamp,
-  updateRepoLastQueried,
+  saveMessage, createConversation, getConversationMessages,
+  updateConversationTimestamp, updateRepoLastQueried,
 } from '../supabase'
 import './ChatInterface.css'
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function MessageBubble({ message, onViewSources, isActive }) {
   const [hovered, setHovered] = useState(false)
@@ -16,9 +15,7 @@ function MessageBubble({ message, onViewSources, isActive }) {
   if (message.role === 'user') {
     return (
       <div className="msg-row msg-user">
-        <div className="msg-bubble user-bubble">
-          {message.content}
-        </div>
+        <div className="msg-bubble user-bubble">{message.content}</div>
       </div>
     )
   }
@@ -36,7 +33,7 @@ function MessageBubble({ message, onViewSources, isActive }) {
             {message.stats.retrieved_count} retrieved · {message.stats.expanded_count} expanded
           </span>
         )}
-        {message.sources && message.sources.length > 0 && (hovered || isActive) && (
+        {message.sources?.length > 0 && (hovered || isActive) && (
           <button
             className={`view-sources-btn ${isActive ? 'active' : ''}`}
             onClick={() => onViewSources(message.sources)}
@@ -102,7 +99,36 @@ function ThinkingBubble() {
   )
 }
 
-export default function ChatInterface({ repoData, user, existingConversation = null }) {
+// ── Guest banner ──────────────────────────────────────────────────────────────
+
+function GuestBanner({ queriesUsed, queryLimit, onSignup }) {
+  const remaining = queryLimit - queriesUsed
+  return (
+    <div className="guest-banner">
+      <span className="guest-banner-text">
+        {remaining > 0
+          ? `Exploring as guest — ${remaining} free quer${remaining === 1 ? 'y' : 'ies'} remaining`
+          : 'You have used all your guest queries'}
+      </span>
+      <button className="guest-banner-cta" onClick={onSignup}>
+        Sign up free for unlimited access →
+      </button>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function ChatInterface({
+  repoData,
+  user,
+  existingConversation = null,
+  isGuest = false,
+  guestQueryLimit = 3,
+  guestQueriesUsed: initialGuestQueriesUsed = 0,
+  onGuestLimitReached,
+  onIncrementGuestQuery,
+}) {
   const [messages, setMessages] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -111,6 +137,7 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   const [sourcesPanelWidth, setSourcesPanelWidth] = useState(340)
   const [conversationId, setConversationId] = useState(existingConversation?.id || null)
   const [loadingHistory, setLoadingHistory] = useState(!!existingConversation)
+  const [guestQueriesUsed, setGuestQueriesUsed] = useState(initialGuestQueriesUsed)
 
   const isDragging = useRef(false)
   const dragStartX = useRef(0)
@@ -118,30 +145,22 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Load existing conversation messages if resuming
+  // Load history when resuming a conversation
   useEffect(() => {
-    if (!existingConversation) {
-      setLoadingHistory(false)
-      return
-    }
-    async function loadHistory() {
-      const msgs = await getConversationMessages(existingConversation.id)
+    if (!existingConversation) { setLoadingHistory(false); return }
+    getConversationMessages(existingConversation.id).then(msgs => {
       const formatted = msgs.map(m => ({
-        role: m.role,
-        content: m.content,
-        sources: m.sources || [],
-        stats: m.stats || null,
+        role: m.role, content: m.content,
+        sources: m.sources || [], stats: m.stats || null,
       }))
       setMessages(formatted)
-      // Set sources to last assistant message's sources
       const lastAssistant = [...formatted].reverse().find(m => m.role === 'assistant')
       if (lastAssistant?.sources?.length) {
         setActiveSources(lastAssistant.sources)
         setActiveSourcesMsgIndex(formatted.lastIndexOf(lastAssistant))
       }
       setLoadingHistory(false)
-    }
-    loadHistory()
+    })
   }, [existingConversation?.id])
 
   useEffect(() => {
@@ -155,10 +174,12 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`
+      inputRef.current.style.height =
+        `${Math.min(inputRef.current.scrollHeight, 160)}px`
     }
   }, [query])
 
+  // Drag-to-resize sources panel
   const onDragStart = useCallback((e) => {
     isDragging.current = true
     dragStartX.current = e.clientX
@@ -190,8 +211,7 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   function buildHistory() {
     const turns = []
     for (let i = 0; i < messages.length - 1; i += 2) {
-      const u = messages[i]
-      const a = messages[i + 1]
+      const u = messages[i], a = messages[i + 1]
       if (u && a) turns.push({ query: u.content, answer: a.content })
     }
     return turns.slice(-2)
@@ -201,43 +221,50 @@ export default function ChatInterface({ repoData, user, existingConversation = n
     const q = query.trim()
     if (!q || loading) return
 
+    // Guest limit check
+    if (isGuest && guestQueriesUsed >= guestQueryLimit) {
+      onGuestLimitReached?.()
+      return
+    }
+
     setQuery('')
-    const userMsg = { role: 'user', content: q }
-    setMessages(prev => [...prev, userMsg])
+    setMessages(prev => [...prev, { role: 'user', content: q }])
     setLoading(true)
 
     try {
-      // Create conversation on first message
+      // Create conversation on first message (authenticated users only)
       let convId = conversationId
-      if (!convId && user) {
+      if (!convId && user && !isGuest) {
         const convo = await createConversation(user.id, repoData.repo_id, repoData.full_name, q)
-        if (convo) {
-          convId = convo.id
-          setConversationId(convId)
-        }
+        if (convo) { convId = convo.id; setConversationId(convId) }
       }
-
-      // Save user message
-      if (convId && user) {
+      if (convId && user && !isGuest) {
         await saveMessage(convId, user.id, 'user', q)
       }
 
-      const history = buildHistory()
-      const data = await queryRepo(repoData.repo_id, q, history)
+      const data = await queryRepo(repoData.repo_id, q, buildHistory())
+
+      // ── Bug fix: filter file_summary chunks from sources ──────────────────
+      // File summary chunks are synthetic LLM-generated descriptions, not real
+      // source code locations. They are valuable context for the LLM answer but
+      // should not appear as clickable citations in the UI because they do not
+      // correspond to a meaningful GitHub line range.
+      const visibleSources = (data.sources || []).filter(
+        s => !s.name?.startsWith('__file__')
+      )
 
       const assistantMsg = {
         role: 'assistant',
         content: data.answer,
-        sources: data.sources || [],
+        sources: visibleSources,
         stats: {
           retrieved_count: data.retrieved_count,
           expanded_count: data.expanded_count,
         },
       }
 
-      // Save assistant message
-      if (convId && user) {
-        await saveMessage(convId, user.id, 'assistant', data.answer, data.sources || [], {
+      if (convId && user && !isGuest) {
+        await saveMessage(convId, user.id, 'assistant', data.answer, visibleSources, {
           retrieved_count: data.retrieved_count,
           expanded_count: data.expanded_count,
         })
@@ -245,19 +272,27 @@ export default function ChatInterface({ repoData, user, existingConversation = n
         await updateRepoLastQueried(user.id, repoData.repo_id)
       }
 
+      // Increment guest query counter
+      if (isGuest) {
+        const newCount = onIncrementGuestQuery?.() ?? guestQueriesUsed + 1
+        setGuestQueriesUsed(newCount)
+        // If that was the last free query, prompt signup after showing the answer
+        if (newCount >= guestQueryLimit) {
+          setTimeout(() => onGuestLimitReached?.(), 3500)
+        }
+      }
+
       setMessages(prev => {
         const next = [...prev, assistantMsg]
         setActiveSourcesMsgIndex(next.length - 1)
         return next
       })
-      setActiveSources(data.sources || [])
+      setActiveSources(visibleSources)
+
     } catch (err) {
       const msg = err.response?.data?.detail || 'Query failed. Please try again.'
       setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `Error: ${msg}`,
-        sources: [],
-        stats: null,
+        role: 'assistant', content: `Error: ${msg}`, sources: [], stats: null,
       }])
     } finally {
       setLoading(false)
@@ -265,10 +300,7 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
   function handleViewSources(sources, msgIndex) {
@@ -277,6 +309,7 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   }
 
   const isEmpty = messages.length === 0
+  const guestLimitReached = isGuest && guestQueriesUsed >= guestQueryLimit
 
   if (loadingHistory) {
     return (
@@ -289,74 +322,110 @@ export default function ChatInterface({ repoData, user, existingConversation = n
   }
 
   return (
-    <div className="chat-layout">
-      <div className="chat-panel">
-        {isEmpty ? (
-          <div className="chat-empty">
-            <div className="empty-icon">⬡</div>
-            <p className="empty-title">Ready to explore</p>
-            <p className="empty-sub">
-              Ask anything about <span className="empty-repo">{repoData.full_name}</span>
-            </p>
-            <div className="empty-suggestions">
-              {[
-                'How does request routing work?',
-                'What is the main entry point?',
-                'How is error handling implemented?',
-                'What design patterns are used?',
-              ].map(s => (
-                <button key={s} className="suggestion-chip" onClick={() => setQuery(s)}>
-                  {s}
-                </button>
-              ))}
+    <div className="chat-layout" style={{ flexDirection: 'column' }}>
+      {/* Guest banner */}
+      {isGuest && (
+        <GuestBanner
+          queriesUsed={guestQueriesUsed}
+          queryLimit={guestQueryLimit}
+          onSignup={() => onGuestLimitReached?.()}
+        />
+      )}
+
+      <div className="chat-layout-inner">
+        {/* Chat panel */}
+        <div className="chat-panel">
+          {isEmpty ? (
+            <div className="chat-empty">
+              <div className="empty-icon">⬡</div>
+              <p className="empty-title">Ready to explore</p>
+              <p className="empty-sub">
+                Ask anything about{' '}
+                <span className="empty-repo">{repoData.full_name}</span>
+              </p>
+              {isGuest && (
+                <p className="empty-guest-note">
+                  {guestQueryLimit} free queries · No signup required
+                </p>
+              )}
+              <div className="empty-suggestions">
+                {[
+                  'How does request routing work?',
+                  'What is the main entry point?',
+                  'How is error handling implemented?',
+                  'What design patterns are used?',
+                ].map(s => (
+                  <button
+                    key={s}
+                    className="suggestion-chip"
+                    onClick={() => setQuery(s)}
+                    disabled={guestLimitReached}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="messages-list">
-            {messages.map((msg, i) => (
-              <MessageBubble
-                key={i}
-                message={msg}
-                onViewSources={(sources) => handleViewSources(sources, i)}
-                isActive={activeSourcesMsgIndex === i}
+          ) : (
+            <div className="messages-list">
+              {messages.map((msg, i) => (
+                <MessageBubble
+                  key={i}
+                  message={msg}
+                  onViewSources={sources => handleViewSources(sources, i)}
+                  isActive={activeSourcesMsgIndex === i}
+                />
+              ))}
+              {loading && <ThinkingBubble />}
+              <div ref={bottomRef} />
+            </div>
+          )}
+
+          <div className="chat-input-bar">
+            <div className={`chat-input-wrap ${guestLimitReached ? 'disabled' : ''}`}>
+              <textarea
+                ref={inputRef}
+                className="chat-input"
+                placeholder={
+                  guestLimitReached
+                    ? 'Sign up for unlimited queries →'
+                    : `Ask about ${repoData.full_name}...`
+                }
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={loading || guestLimitReached}
+                rows={1}
               />
-            ))}
-            {loading && <ThinkingBubble />}
-            <div ref={bottomRef} />
+              <button
+                className="btn-icon"
+                onClick={guestLimitReached ? () => onGuestLimitReached?.() : handleSend}
+                disabled={loading || (!guestLimitReached && !query.trim())}
+                aria-label={guestLimitReached ? 'Sign up' : 'Send'}
+              >
+                {guestLimitReached ? '→' : '↑'}
+              </button>
+            </div>
+            {!guestLimitReached && (
+              <p className="input-hint">Enter to send · Shift+Enter for newline</p>
+            )}
           </div>
-        )}
-
-        <div className="chat-input-bar">
-          <div className="chat-input-wrap">
-            <textarea
-              ref={inputRef}
-              className="chat-input"
-              placeholder={`Ask about ${repoData.full_name}...`}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={loading}
-              rows={1}
-            />
-            <button
-              className="btn-icon"
-              onClick={handleSend}
-              disabled={loading || !query.trim()}
-              aria-label="Send"
-            >↑</button>
-          </div>
-          <p className="input-hint">Enter to send · Shift+Enter for newline</p>
         </div>
-      </div>
 
-      <div
-        className="panel-resize-handle"
-        onMouseDown={onDragStart}
-        title="Drag to resize"
-      />
+        {/* Resize handle */}
+        <div
+          className="panel-resize-handle"
+          onMouseDown={onDragStart}
+          title="Drag to resize"
+        />
 
-      <div className="sources-panel-wrapper" style={{ width: `${sourcesPanelWidth}px` }}>
-        <SourcesPanel sources={activeSources} repoData={repoData} />
+        {/* Sources panel */}
+        <div
+          className="sources-panel-wrapper"
+          style={{ width: `${sourcesPanelWidth}px` }}
+        >
+          <SourcesPanel sources={activeSources} repoData={repoData} />
+        </div>
       </div>
     </div>
   )
