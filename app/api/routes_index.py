@@ -64,6 +64,7 @@ def run_indexing_job(repo_id: str, github_url: str) -> None:
             "stage": "Indexing complete",
             "chunks_processed": len(final_chunks),
             "chunks_total": len(final_chunks),
+            "chunk_count": len(final_chunks),
             "clone_result": clone_result,
         }
 
@@ -98,7 +99,7 @@ async def index_repo(request: IndexRequest, background_tasks: BackgroundTasks):
             "repo_id": repo_id,
             "status": "cached",
             "message": "Repository already indexed. Ready to query.",
-            "chunk_count": cache.get("chunk_count"),
+            "chunk_count": cache.get("chunk_count", 0),
             "full_name": metadata["full_name"],
             "commit_hash": commit_hash,
         }
@@ -135,7 +136,7 @@ async def index_status(repo_id: str):
             "repo_id": repo_id,
             "status": "ready",
             "stage": "Indexing complete",
-            "chunk_count": cache.get("chunk_count"),
+            "chunk_count": cache.get("chunk_count", 0),
             "full_name": cache.get("full_name"),
             "commit_hash": cache.get("commit_hash"),
         }
@@ -153,4 +154,5 @@ async def index_status(repo_id: str):
         "stage": job["stage"],
         "chunks_processed": job.get("chunks_processed", 0),
         "chunks_total": job.get("chunks_total", 0),
+        "chunk_count": job.get("chunk_count", 0),
     }
