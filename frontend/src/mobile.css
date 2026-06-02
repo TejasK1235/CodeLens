@@ -1,128 +1,111 @@
-/* ── Mobile responsive overrides ── */
-/* Applies to screens 768px wide and under (phones + small tablets) */
-
 @media (max-width: 768px) {
 
-  /* ── App header ── */
-  .app-header {
-    padding: 0 14px;
-    height: 48px;
-    gap: 10px;
-  }
-  .logo-text { font-size: 13px; }
-  .repo-name { display: none; } /* too long for mobile header */
-  .btn-sm { font-size: 11px; padding: 4px 8px; }
-
-  /* ── Chat layout: stack vertically instead of side by side ── */
-  .chat-layout {
-    flex-direction: column !important;
-  }
+  /* ── Force all flex rows to become columns ── */
+  .chat-layout,
   .chat-layout-inner {
     flex-direction: column !important;
-    flex: 1;
     overflow: hidden;
   }
 
-  /* Chat panel takes full height, sources hidden by default */
+  /* ── Chat panel always full width ── */
   .chat-panel {
-    flex: 1;
-    min-width: 0;
     width: 100% !important;
+    flex: 1 !important;
+    min-width: 0 !important;
   }
 
-  /* Hide resize handle on mobile — meaningless on touch */
-  .panel-resize-handle {
-    display: none !important;
-  }
+  /* ── Hide resize handle ── */
+  .panel-resize-handle { display: none !important; }
 
-  /* Sources panel: hidden on mobile by default.
-     Shows as a bottom sheet when user taps "view sources" */
+  /* ── Sources panel becomes a fixed-height strip at bottom ── */
   .sources-panel-wrapper {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    height: 260px;
+    height: 220px !important;
     flex-shrink: 0;
     border-top: 1px solid var(--border-default);
-  }
-  /* Hide sources panel entirely when no sources are active */
-  .sources-panel-wrapper:empty {
-    display: none;
+    overflow: hidden;
   }
 
-  /* ── Messages ── */
-  .messages-list {
-    padding: 14px;
-    gap: 14px;
+  /* ── Fix suggestion chips overflowing ── */
+  .chat-empty {
+    padding: 20px 16px;
+    overflow: hidden;
   }
-  .msg-bubble {
-    max-width: 92% !important;
-    font-size: 13px;
-    padding: 10px 13px;
-  }
-  .assistant-bubble { max-width: 96% !important; }
-
-  /* ── Input bar ── */
-  .chat-input-bar {
-    padding: 10px 12px 8px;
-  }
-  .chat-input { font-size: 16px; } /* 16px prevents iOS auto-zoom on focus */
-  .input-hint { display: none; } /* no room on mobile */
-
-  /* ── Empty state ── */
-  .chat-empty { padding: 24px 16px; }
   .empty-suggestions {
-    gap: 6px;
     max-width: 100%;
+    width: 100%;
+    overflow: hidden;
   }
   .suggestion-chip {
     font-size: 11px;
-    padding: 7px 11px;
+    padding: 7px 10px;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
   }
 
-  /* ── Dashboard ── */
-  .dashboard-body {
-    padding: 16px;
+  /* ── Messages ── */
+  .messages-list { padding: 12px; gap: 12px; }
+  .msg-bubble { max-width: 94% !important; font-size: 13px; }
+  .assistant-bubble { max-width: 98% !important; }
+
+  /* ── Input ── */
+  .chat-input-bar { padding: 10px 12px 8px; }
+  .chat-input { font-size: 16px !important; } /* prevents iOS zoom */
+  .input-hint { display: none; }
+
+  /* ── Header ── */
+  .app-header { padding: 0 12px; gap: 8px; }
+  .repo-name { 
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+
+  /* ── Dashboard header ── */
   .dashboard-header {
-    padding: 0 16px;
+    padding: 8px 16px;
     height: auto;
-    min-height: 56px;
     flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    gap: 6px;
   }
   .dashboard-stats-bar { display: none; }
+  .user-email { display: none; }
+
+  /* ── Dashboard body ── */
+  .dashboard-body { padding: 16px; }
   .dashboard-section-header {
     flex-direction: column;
-    gap: 10px;
     align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
   }
+
+  /* ── Repo cards — fix overlapping buttons ── */
   .repo-card-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 14px 14px;
   }
+  .repo-card-info { width: 100%; }
   .repo-card-actions {
     width: 100%;
-    justify-content: flex-end;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    justify-content: flex-start;
   }
+  .btn-new-chat { flex: 1; text-align: center; }
+  .btn-toggle-history { flex-shrink: 0; }
 
   /* ── Auth page ── */
-  .auth-card {
-    padding: 28px 20px;
-    margin: 0 8px;
-  }
+  .auth-screen { padding: 16px; }
+  .auth-card { padding: 24px 18px; }
   .auth-title { font-size: 20px; }
-
-  /* ── RepoInput ── */
-  .repo-input-wrap {
-    flex-direction: column;
-    gap: 10px;
-  }
-  .repo-input-prefix { display: none; }
 
   /* ── Guest banner ── */
   .guest-banner {
@@ -131,20 +114,9 @@
     gap: 6px;
     padding: 8px 14px;
   }
-  .guest-banner-cta { width: 100%; text-align: center; }
-
-  /* ── IndexingProgress ── */
-  .indexing-card {
-    padding: 24px 16px;
-    margin: 16px;
+  .guest-banner-cta {
+    width: 100%;
+    text-align: center;
+    padding: 8px;
   }
-}
-
-/* Slightly larger phones and small tablets — softer adjustments */
-@media (max-width: 480px) {
-  .msg-bubble { font-size: 13px; }
-  .empty-title { font-size: 16px; }
-  .section-title { font-size: 15px; }
-  .repo-card-name { font-size: 12px; }
-  .btn-index-new { font-size: 12px; padding: 8px 14px; }
 }
