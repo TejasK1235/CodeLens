@@ -218,8 +218,12 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Miscelleneous
-storage/chroma/.
-storage/repos/.
+storage/chroma/
+storage/repos/
 
 
 frontend_copy/
+app/api/routes_index_copy.py
+notebooks/
+CodeLens.zip
+package-lock.json
