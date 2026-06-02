@@ -1,3 +1,12 @@
+---
+title: Codelens Api
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # CodeLens
 
 **Ask natural language questions about any GitHub codebase. Get accurate, source-cited answers grounded in the actual code.**
