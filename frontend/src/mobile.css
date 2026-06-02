@@ -1,47 +1,43 @@
 @media (max-width: 768px) {
 
-  /* ── Force all flex rows to become columns ── */
+  /* ── Stack layout vertically ── */
   .chat-layout,
   .chat-layout-inner {
     flex-direction: column !important;
     overflow: hidden;
   }
 
-  /* ── Chat panel always full width ── */
+  /* ── Chat panel full width ── */
   .chat-panel {
     width: 100% !important;
     flex: 1 !important;
     min-width: 0 !important;
   }
 
-  /* ── Hide resize handle ── */
-  .panel-resize-handle { display: none !important; }
-
-  /* ── Sources panel becomes a fixed-height strip at bottom ── */
+  /* ── Sources panel as bottom strip ── */
+  /* Note: width is also overridden in JSX conditionally for inline style */
   .sources-panel-wrapper {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
     height: 220px !important;
-    flex-shrink: 0;
+    flex-shrink: 0 !important;
     border-top: 1px solid var(--border-default);
     overflow: hidden;
   }
 
-  /* ── Fix suggestion chips overflowing ── */
-  .chat-empty {
-    padding: 20px 16px;
-    overflow: hidden;
-  }
+  /* ── Hide resize handle ── */
+  .panel-resize-handle { display: none !important; }
+
+  /* ── Fix suggestion chips ── */
+  .chat-empty { padding: 20px 16px; overflow: hidden; }
   .empty-suggestions {
     max-width: 100%;
     width: 100%;
-    overflow: hidden;
   }
   .suggestion-chip {
     font-size: 11px;
     padding: 7px 10px;
-    max-width: 100%;
     white-space: normal;
     word-break: break-word;
   }
@@ -53,19 +49,20 @@
 
   /* ── Input ── */
   .chat-input-bar { padding: 10px 12px 8px; }
-  .chat-input { font-size: 16px !important; } /* prevents iOS zoom */
+  .chat-input { font-size: 16px !important; }
   .input-hint { display: none; }
 
   /* ── Header ── */
-  .app-header { padding: 0 12px; gap: 8px; }
-  .repo-name { 
-    max-width: 120px;
+  .app-header { padding: 0 12px; gap: 8px; height: 48px; }
+  .repo-name {
+    max-width: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 11px;
   }
 
-  /* ── Dashboard header ── */
+  /* ── Dashboard ── */
   .dashboard-header {
     padding: 8px 16px;
     height: auto;
@@ -74,8 +71,6 @@
   }
   .dashboard-stats-bar { display: none; }
   .user-email { display: none; }
-
-  /* ── Dashboard body ── */
   .dashboard-body { padding: 16px; }
   .dashboard-section-header {
     flex-direction: column;
@@ -84,26 +79,24 @@
     margin-bottom: 16px;
   }
 
-  /* ── Repo cards — fix overlapping buttons ── */
+  /* ── Repo cards ── */
   .repo-card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
-    padding: 14px 14px;
+    padding: 14px;
   }
   .repo-card-info { width: 100%; }
   .repo-card-actions {
     width: 100%;
-    display: flex;
     flex-direction: row;
     gap: 8px;
     justify-content: flex-start;
   }
   .btn-new-chat { flex: 1; text-align: center; }
-  .btn-toggle-history { flex-shrink: 0; }
 
-  /* ── Auth page ── */
-  .auth-screen { padding: 16px; }
+  /* ── Auth ── */
+  .auth-screen { padding: 16px; align-items: flex-start; padding-top: 40px; }
   .auth-card { padding: 24px 18px; }
   .auth-title { font-size: 20px; }
 
@@ -114,9 +107,5 @@
     gap: 6px;
     padding: 8px 14px;
   }
-  .guest-banner-cta {
-    width: 100%;
-    text-align: center;
-    padding: 8px;
-  }
+  .guest-banner-cta { width: 100%; text-align: center; padding: 8px; }
 }

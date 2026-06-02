@@ -413,16 +413,17 @@ export default function ChatInterface({
         </div>
 
         {/* Resize handle */}
-        <div
-          className="panel-resize-handle"
-          onMouseDown={onDragStart}
-          title="Drag to resize"
-        />
-
+        {window.innerWidth > 768 && (
+          <div
+            className="panel-resize-handle"
+            onMouseDown={onDragStart}
+            title="Drag to resize"
+          />
+        )}
         {/* Sources panel */}
         <div
           className="sources-panel-wrapper"
-          style={{ width: `${sourcesPanelWidth}px` }}
+          style={{ width: window.innerWidth <= 768 ? '100%' : `${sourcesPanelWidth}px` }}
         >
           <SourcesPanel sources={activeSources} repoData={repoData} />
         </div>
