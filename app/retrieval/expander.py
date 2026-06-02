@@ -73,51 +73,31 @@ def expand(repo_id: str, retrieved_chunks: list[dict]) -> list[dict]:
     return expanded
 
 
-# def retrieve_with_expansion(repo_id: str, query: str) -> dict:
-#     from app.retrieval.retriever import retrieve
-
-#     retrieved = retrieve(repo_id, query)
-
-#     expanded = expand(repo_id, retrieved)
-
-#     for chunk in retrieved:
-#         chunk["is_expanded"] = False
-
-#     all_chunks = retrieved + expanded
-
-#     return {
-#         "query": query,
-#         "retrieved_count": len(retrieved),
-#         "expanded_count": len(expanded),
-#         "total_chunks": len(all_chunks),
-#         "chunks": all_chunks,
-#     }
 
 from app.retrieval.retriever import retrieve, rerank
 
 
-def retrieve_with_expansion(repo_id: str, query: str) -> dict:
-    # Step 1: retrieve semantically
+def retrieve_with_expansion(repo_id: str, query: str, max_hops: int = 2) -> dict:
     retrieved = retrieve(repo_id, query)
-    
-    # Step 2: rerank only the retrieved chunks (not expanded)
     reranked = rerank(query, retrieved, top_k=4)
     
-    # Step 3: expand from the reranked results only
-    expanded = expand(repo_id, reranked)
+    all_chunks = list(reranked)
+    seen_ids = {c["chunk_id"] for c in all_chunks}
+    frontier = reranked  # start expansion from reranked chunks
     
-    # Step 4: cap expanded at 2, keep all reranked
-    expanded = expanded[:2]
+    for hop in range(max_hops):
+        expanded = expand(repo_id, frontier)
+        new_chunks = [c for c in expanded if c["chunk_id"] not in seen_ids]
+        if not new_chunks:
+            break
+        # cap new chunks per hop to control token budget
+        new_chunks = new_chunks[:2]
+        all_chunks.extend(new_chunks)
+        seen_ids.update(c["chunk_id"] for c in new_chunks)
+        frontier = new_chunks  # next hop expands from what we just found
     
-    for chunk in reranked:
-        chunk["is_expanded"] = False
-
-    all_chunks = reranked + expanded
-
     return {
-        "query": query,
         "retrieved_count": len(reranked),
-        "expanded_count": len(expanded),
-        "total_chunks": len(all_chunks),
+        "expanded_count": len(all_chunks) - len(reranked),
         "chunks": all_chunks,
     }
