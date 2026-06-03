@@ -63,11 +63,31 @@ export default function AuthPage({ onAuth, onGuestMode }) {
         <h1 className="auth-title">
           {mode === 'login' ? 'Welcome back' : 'Create account'}
         </h1>
-        <p className="auth-subtitle">
-          {mode === 'login'
-            ? 'Sign in to access your repos and conversation history.'
-            : 'Start asking questions about any GitHub codebase.'}
-        </p>
+
+        {mode === 'login' ? (
+          <p className="auth-subtitle">
+            Sign in to access your repos and conversation history.
+          </p>
+        ) : (
+          <p className="auth-subtitle">
+            Start asking questions about any GitHub codebase.
+          </p>
+        )}
+
+        <div className="auth-pitch">
+          <p className="auth-pitch-headline">Ask anything about any codebase.</p>
+          <p className="auth-pitch-body">
+            CodeLens indexes any public GitHub repository and answers your questions
+            with source citations. Exact file, exact line.
+          </p>
+          <div className="auth-pitch-tags">
+            <span>Python · JS · Java · C++</span>
+            <span>·</span>
+            <span>No setup required</span>
+            <span>·</span>
+            <span>Free</span>
+          </div>
+        </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-field">
